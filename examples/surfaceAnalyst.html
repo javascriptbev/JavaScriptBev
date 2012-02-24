@@ -1,0 +1,148 @@
+﻿<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>SurfaceAnalyst</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, baseLayer, resultLayer, spatialAnalystURL,
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1)
+            points = new SuperMap.Geometry.LinearRing([
+                new SuperMap.Geometry.Point(0,4010338),
+                new SuperMap.Geometry.Point(1063524,4010338),
+                new SuperMap.Geometry.Point(1063524,3150322),
+                new SuperMap.Geometry.Point(0,3150322)
+            ]),        
+            region = new SuperMap.Geometry.Polygon([points]);
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-temperature/rest/maps/全国温度变化图";
+            spatialAnalystURL = "http://localhost:8090/iserver/services/spatialanalyst-sample/restjsr/spatialanalyst";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-temperature/rest/maps/全国温度变化图";
+            spatialAnalystURL = "http://" + local + "/iserver/services/spatialanalyst-sample/restjsr/spatialanalyst";
+        }
+        
+        function init() {
+            map = new SuperMap.Map("map",{controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                  })], units: "m"
+            });
+            map.allOverlays = true;
+            baseLayer = new SuperMap.Layer.TiledDynamicRESTLayer("全国温度变化图", url, {transparent: true, cacheEnabled: true}, {maxResolution:"auto"});   
+            baseLayer.events.on({"layerInitialized":addLayer});                
+            resultLayer = new SuperMap.Layer.Vector("等值线"); 
+        } 
+        function addLayer() {
+            map.addLayers([baseLayer, resultLayer]);
+            map.setCenter(new SuperMap.LonLat(531762, 3580330), 0);
+        }        
+        function surfaceAnalystProcess() {
+            resultLayer.removeAllFeatures();
+            var surfaceAnalystService = new SuperMap.REST.SurfaceAnalystService(spatialAnalystURL),
+                surfaceAnalystParameters = new SuperMap.REST.SurfaceAnalystParametersSetting({
+                    datumValue: 0,
+                    interval: 2,
+                    resampleTolerance: 0,
+                    smoothMethod: SuperMap.REST.SmoothMethod.BSPLINE,
+                    smoothness: 3,
+                    clipRegion: region
+                }),
+                params = new SuperMap.REST.DatasetSurfaceAnalystParameters({
+                    extractParameter: surfaceAnalystParameters,
+                    dataset: "SamplesP@Interpolation",
+                    resolution: 3000,
+                    zValueFieldName: "AVG_TMP"
+                });
+            surfaceAnalystService.events.on({"processCompleted": surfaceAnalystCompleted, "processFailed": surfaceAnalystFailed});
+            surfaceAnalystService.processAsync(params);
+        }
+        
+        function surfaceAnalystCompleted(args) {
+            var features = args.result.recordset.features;
+            for (var len=features.length,i=0;i<len;i++) {
+                features[i].style.strokeColor = "#304DBE";
+            }
+            resultLayer.addFeatures(args.result.recordset.features);
+        }
+        
+        function surfaceAnalystFailed(args) {
+            alert(args.error.errorMsg);
+        }
+        
+        function removeData() {
+            resultLayer.removeAllFeatures();
+        }
+    </script>
+  </head>
+  <body >
+       <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+              
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                 </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="surfaceAnalystProcess()"><p>提</p><p>取</p><p>等</p><p>值</p><p>线</p></a>
+                </div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="removeData()"><p>移</p><p>除</p><p>等</p><p>值</p><p>线</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4>描述</h4>
+                        <li>等值线是将相邻的具有相同值的点（诸如高程、温度、降水、污染或大气压力）连接起来的线。<br />
+                            常见的有等温线，等压线，等高线，等势线等。</li>
+                        <li>等值线的分布反映了栅格表面上值的变化，等值线分布越密集的地方，表示栅格表面值的变化比较剧烈，<br/>
+                            例如，如果为等高线，则越密集，坡度越陡峭；等值线分布较稀疏，表示栅格表面值的变化较小，若为等高线，则表示坡度很平缓。<br/>
+                            通过提取等值线，可以找到高程、温度、降水等的值相同的位置，同时等值线的分布状况也可以显示出变化的陡峭和平缓区。
+                        </li>
+                    </ol>
+                    <ol type="1">
+                        <h4>操作说明</h4>
+                        <li>图中绿色点为全国温度信息收集站，选取(0,4010338)、(1063524,4010338)、(1063524,3150322)、(0,3150322)区域，通过对该点数据集(SamplesP@Interpolation)的温度字段值进行插值分析，得到栅格数据集（方法实现的中间结果），接着从栅格数据集提取等值线。</li>
+                        <li>点击 “提取等值线” 按钮，黄色线要素即为等温线，等温线越密集，表示气温差别越大；</li>
+                        <li>点击 “移除等值线” 按钮，清除当前分析结果。</li>            
+                    </ol>                                         
+                </div>
+            </div>
+    </div>
+   </div> 
+ </body>
+</html>

@@ -1,0 +1,199 @@
+﻿<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>ThemeUnique</title>
+    <link rel="stylesheet"  href="./css/style.css" />   
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();   
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, baseLayer, layersID, themeLayer,
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1);
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-jingjin/rest/maps/京津地区土地利用现状图_专题图";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-jingjin/rest/maps/京津地区土地利用现状图_专题图";
+        } 
+        
+        function init() {
+            map = new SuperMap.Map("map",{controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                  })]
+            });
+            baseLayer = new SuperMap.Layer.TiledDynamicRESTLayer("京津地区土地利用现状图", url, {transparent: true, cacheEnabled: true}, {maxResolution: "auto"});             
+            baseLayer.events.on({"layerInitialized": addLayer});
+           
+        }    
+        function　addLayer() {
+            map.addLayer(baseLayer);
+            map.setCenter(new SuperMap.LonLat(117, 40), 0);
+            map.allOverlays = true;
+        }
+        function addThemeUnique() {
+            removeTheme();
+            var themeService = new SuperMap.REST.ThemeService(url, {eventListeners:{"processCompleted": themeCompleted, "processFailed": themeFailed}});
+            var style1, style2, style3, style4, style5, style6;
+            style1 = new SuperMap.REST.ServerStyle({
+                fillForeColor: new SuperMap.REST.ServerColor(103, 110, 208),
+                lineColor: new SuperMap.REST.ServerColor(103, 110, 208)
+            });
+            style2 = new SuperMap.REST.ServerStyle({
+                fillForeColor: new SuperMap.REST.ServerColor(87, 104, 129),
+                lineColor: new SuperMap.REST.ServerColor(87, 104, 129)
+            });
+            style3 = new SuperMap.REST.ServerStyle({
+                fillForeColor: new SuperMap.REST.ServerColor(140, 211, 208),
+                lineColor: new SuperMap.REST.ServerColor(140, 211, 208)
+            });
+           style4 = new SuperMap.REST.ServerStyle({
+                fillForeColor: new SuperMap.REST.ServerColor(193, 44, 24),
+                lineColor: new SuperMap.REST.ServerColor(193, 44, 24)
+            });
+            style5 = new SuperMap.REST.ServerStyle({
+                fillForeColor: new SuperMap.REST.ServerColor(225, 193, 124),
+                lineColor: new SuperMap.REST.ServerColor(225, 193, 124)
+            });
+            style6 = new SuperMap.REST.ServerStyle({
+                fillForeColor: new SuperMap.REST.ServerColor(168, 225, 116),
+                lineColor: new SuperMap.REST.ServerColor(168, 225, 116)
+            });
+            var themeUniqueIteme1, themeUniqueIteme2, themeUniqueIteme3, themeUniqueIteme4, themeUniqueIteme5,
+                     themeUniqueIteme6;
+            themeUniqueIteme1 = new SuperMap.REST.ThemeUniqueItem({
+                unique: "城市",
+                style: style1
+            });
+
+            themeUniqueIteme2 = new SuperMap.REST.ThemeUniqueItem({
+                unique: "旱地",
+                style: style2
+            });
+                
+            themeUniqueIteme3 = new SuperMap.REST.ThemeUniqueItem({
+                unique: "水浇地",
+                style: style3
+            });
+
+            themeUniqueIteme4 = new SuperMap.REST.ThemeUniqueItem({
+                unique: "湖泊水库",
+                style: style4
+            });
+
+            themeUniqueIteme5 = new SuperMap.REST.ThemeUniqueItem({
+                unique: "水田",
+                style: style5
+            });
+
+            themeUniqueIteme6 = new SuperMap.REST.ThemeUniqueItem({
+                unique: "草地",
+                style: style6
+            });
+                
+            themeUnique = new SuperMap.REST.ThemeUnique({
+                uniqueExpression: "LandType",
+                items: [themeUniqueIteme1, themeUniqueIteme2, themeUniqueIteme3, themeUniqueIteme4, themeUniqueIteme5, themeUniqueIteme6],
+                defaultStyle: new SuperMap.REST.ServerStyle({
+                    fillForeColor: new SuperMap.REST.ServerColor(48, 89, 14),
+                    lineColor: new SuperMap.REST.ServerColor(48, 89, 14)
+                })
+            });
+            themeParameters = new SuperMap.REST.ThemeParameters({
+                datasetNames: ["Landuse_R"],
+                dataSourceNames: ["Jingjin"], 
+                themes: [themeUnique],
+            });
+
+            themeService.processAsync(themeParameters);
+        }
+        
+        function themeCompleted(themeEventArgs) {
+            if(themeEventArgs.result.resourceInfo.id) {
+                themeLayer = new SuperMap.Layer.TiledDynamicRESTLayer("京津地区土地利用现状图_专题图", url, {cacheEnabled:false,transparent: true,layersID: themeEventArgs.result.resourceInfo.id}, {"maxResolution": "auto"});  
+                themeLayer.events.on({"layerInitialized": addThemeLayer});                
+            }
+        }
+        function addThemeLayer() {
+            map.addLayer(themeLayer);
+        }
+        
+        function themeFailed(serviceFailedEventArgs) {
+            alert(serviceFailedEventArgs.error.errorMsg);
+        }
+        
+        function removeTheme() {
+            if (map.layers.length > 1) {
+                map.removeLayer(themeLayer, baseLayer);
+            }
+        }
+    </script>
+  </head>
+  <body >
+    <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+               
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="addThemeUnique()"><p>创</p><p>建</p><p>专</p><p>题</p><p>图</p></a>
+                </div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="removeTheme()"><p>移</p><p>除</p><p>专</p><p>题</p><p>图</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4 >描述</h4>
+                        <li>单值专题图是将专题值相同的要素归为一类，为每一类设定一种渲染风格，如颜色或符号等，专题值相同的要素采用相同的渲染风格，从而用来区分不同的类型。
+                        </li>
+                        <li>单值专题图的专题变量可以是非数值型的描述性属性，如要素的名称，类型及状态等；也可以是数值型的但用于标识的属性，如要素的唯一标识ID，土地利用类型标识号等；当然，专题变量也可以是数值型的表示量的属性，这时每一个数值的要素会被赋予一种风格，如果数值非常多而且各不相同，不推荐使用此方法制作专题图，因为并不能达到区分数据的作用。                        </li>
+                        <li>单值专题图着重表示现象的质的区别，一般不表示数量的特征，可用于地质图、地貌图、植被图、土地利用图、政治行政区划图、自然区划图、经济区划图等。
+                        </li>                   
+                    </ol>
+                    <ol type="1">
+                        <h4 >操作说明</h4>
+                        <li>该范例展示根据京津地区土地利用类型制作的单值专题图</li>
+                        <li>点击 “创建专题图” 按钮，即可看到各地区土地利用类型的单值专题图；</li>
+                        <li>点击 “移除专题图” 按钮，清除当前专题图。</li> 
+                    </ol>
+                </div>
+            </div>
+        </div>       
+    </div>              
+  </body>
+</html>

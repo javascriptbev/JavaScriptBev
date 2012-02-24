@@ -1,0 +1,97 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>CloudLayer</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script src="./js/TDTLayer.js"></script>
+    <script type="text/javascript">
+         $(document).ready(function () {
+             // 调整子页面布局
+             adjustSubFrame();
+             // 子页面事件响应函数封装
+             clickmessage();
+             // 地图初始化
+             init();
+         });
+
+        var map, layer;
+        function init() {
+            map = new SuperMap.Map("map", { controls: [
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                      })]
+            });
+            
+            layer = new SuperMap.Layer.TDTLayer();
+            markerLayer = new SuperMap.Layer.Markers("Markers");
+            map.addLayers([layer,markerLayer]);
+            map.setCenter(new SuperMap.LonLat(0, 0), 0);
+        }
+        var geolocate=new SuperMap.Control.Geolocate();
+        function geoLocation(){
+            if (geolocate.geolocation) {
+                geolocate.geolocation.getCurrentPosition(function(position){
+                    latitude = position.coords.latitude;
+                    longitude = position.coords.longitude;
+                    processCompleted(latitude,longitude);
+                },function(err){
+                });
+            }else{
+                alert("您当前使用的浏览器不支持地图地位服务");
+            }
+        
+        }
+         function processCompleted(latitude,longitude) {
+            size = new SuperMap.Size(44, 33),
+            offset = new SuperMap.Pixel(-(size.w/2), -size.h),
+            icon = new SuperMap.Icon("../resource/controlImages/marker.png", size, offset);
+            markerLayer.addMarker(new SuperMap.Marker(new SuperMap.LonLat(longitude, latitude), icon));
+            map.setCenter(new SuperMap.LonLat(longitude, latitude));
+        }
+     </script>
+</head>
+  <body >
+   <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+               
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                </div>
+               </div > 
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="geoLocation()"><p>地</p><p>图</p><p>定</p><p>位</p></a>
+                </div> 
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>         
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4>描述</h4>
+                        <li>定义：通过向天地图服务器发送请求得到天地图服务发布的图层；</li>
+                    </ol>                                                       
+                </div>
+            </div>
+        </div>
+   </div> 
+  </body>
+</html>

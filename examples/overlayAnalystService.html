@@ -1,0 +1,145 @@
+﻿<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>OverlayAnalyst</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, baseLayer, resultLayer, spatialAnalystURL,
+            style = {
+                strokeColor: "#343434",
+                strokeWidth: 0.1,
+                pointerEvents: "visiblePainted",
+                fill: true,
+                fillColor: "#304DBE",
+                fillOpacity: 0.8
+            },
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1);
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-jingjin/rest/maps/京津地区人口分布图_专题图";
+            spatialAnalystURL = "http://localhost:8090/iserver/services/spatialanalyst-sample/restjsr/spatialanalyst";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-jingjin/rest/maps/京津地区人口分布图_专题图";
+            spatialAnalystURL = "http://" + local + "/iserver/services/spatialanalyst-sample/restjsr/spatialanalyst";
+        }
+        
+        function init() {
+             map = new SuperMap.Map("map",{controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                  })]
+            });
+            baseLayer = new SuperMap.Layer.TiledDynamicRESTLayer("京津地区人口分布图_专题图", url, {transparent: true, cacheEnabled: true}, {maxResolution:"auto"});  
+            baseLayer.events.on({"layerInitialized": addLayer});                
+            resultLayer = new SuperMap.Layer.Vector("叠加结果");   
+
+        }
+        function addLayer() {
+            map.addLayers([baseLayer, resultLayer]);
+            map.setCenter(new SuperMap.LonLat(117, 40), 0);
+            map.allOverlays = true;
+        }                
+        function overlayAnalystProcess() {
+            resultLayer.removeAllFeatures();
+            var overlayServiceByDatasets = new SuperMap.REST.OverlayAnalystService(spatialAnalystURL),
+                dsOverlayAnalystParameters = new SuperMap.REST.DatasetOverlayAnalystParameters({
+                    sourceDataset: "BaseMap_R@Jingjin",
+                    operateDataset: "Neighbor_R@Jingjin",
+                    tolerance: 0,
+                    operation: SuperMap.REST.OverlayOperationType.UNION
+                });
+            overlayServiceByDatasets.events.on({"processCompleted": overlayAnalystCompleted, "processFailed": overlayAnalystFailed});
+            overlayServiceByDatasets.processAsync(dsOverlayAnalystParameters);
+        }
+        
+        function overlayAnalystCompleted(args) {
+            var feature, features = [];
+            for(var i=0;i<args.result.recordset.features.length;i++){
+                feature = args.result.recordset.features[i];
+                feature.style = style;
+                features.push(feature);
+            }
+            resultLayer.addFeatures(features);
+        }
+        
+        function overlayAnalystFailed(args) {
+            alert(args.error.errorMsg);
+        }
+        
+        function removeResult() {
+            resultLayer.removeAllFeatures();
+        }
+    </script>
+  </head>
+ <body >
+    <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+               
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="overlayAnalystProcess()"><p>叠</p><p>加</p><p>分</p><p>析</p></a>
+                </div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="removeResult()"><p>移</p><p>除</p><p>结</p><p>果</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4>描述</h4>
+                        <li>定义:在统一空间参考系统下，通过对两个数据集进行的一系列几何运算，提取用户需要的新的空间几何信息，产生新数据集的过程。<br/>
+                            该空间处理支持剪裁、擦除、同一、求交、对称差、合并、更新几种叠加分析操作。
+                        </li>
+                        <li>SuperMap 中的叠加分析涉及到三个数据集，其中一个为源数据集，除合并运算和对称差运算必须是面数据集外，其他运算可以是点、线、面、 CAD 数据集或者路由数据集；<br/>
+                            另一个数据集为叠加数据集，必须为面数据集；<br/>
+                            还有一个数据集就是叠加结果数据集，用于保存叠加分析得到的结果数据。</li>
+                    </ol>
+                    <ol type="1">
+                        <h4>操作说明</h4>
+                        <li>本范例以合并(UNION)为例，将京津地区的行政区域与临边地区的行政区域做合并，即可对两个数据集进行合并(UNION)操作。</li>
+                        <li>点击 "叠加分析" 按钮，进行行政区合并操作，并显示合并结果（图中的绿色区域为合并后的行政区域）；</li>
+                        <li>点击 "移除结果" 按钮，移除当前的合并结果。</li>             
+                    </ol>                                         
+                </div>
+            </div>
+    </div>
+   </div>     
+  </body>
+</html>

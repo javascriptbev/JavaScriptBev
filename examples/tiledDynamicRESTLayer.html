@@ -1,0 +1,92 @@
+﻿<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>SuperMap iClient JavaScript:TiledDynamicRESTLayer</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();   
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, url, layer,
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1);
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-world/rest/maps/World Map";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-world/rest/maps/World Map";
+        }
+        function init() {
+            map = new SuperMap.Map("map",{controls: [                      
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                  })]
+            });
+            layer = new SuperMap.Layer.TiledDynamicRESTLayer("World", url, {transparent: true, cacheEnabled: true}, {maxResolution:"auto"}); 
+            layer.events.on({"layerInitialized": addLayer});       
+        }
+        
+        function addLayer() {
+            map.addLayer(layer);
+            map.setCenter(new SuperMap.LonLat(0, 0), 0);
+        }
+    </script>
+  </head>
+  <body >
+    <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+              
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                 </div>
+               </div >
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                <ol type="1">
+                    <h4 >描述</h4>
+                    <li>定义：TiledDynamicRESTLayer 就是用于显示 SuperMap iServer Java 6R 服务提供的基于 REST 类型的地图服务的一种分块动态图层；
+                    </li>
+                    <li>分块动态图层(TiledDynamicLayer)：将一个完整的地图切割成多个相同大小的正方形块图片，地图就是由这些块图片拼合而成最终呈现的。<br/>
+                        之所以称之为动态图层，是因为这些正方形图块是即时生成，而非事先切好。<br/>
+                        分块动态图层是 SuperMap 特有的图层类型，它特别适用于需要实时更新的数据的显示，例如动态监控交通流量。实际上交通流量是拥有大量车辆分布的点图层，随着车流的变化，点分布也在不断更新，通过动态分块图层便能够十分方便、流程的显示实时数据。 
+                    </li>
+                     
+                </ol>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+  </body>
+</html>

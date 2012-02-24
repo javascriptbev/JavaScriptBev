@@ -1,0 +1,165 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>BufferAnalyst</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, url, baseLayer, resultLayer, vectorLayer, spatialAnalystURL,
+            points = [new SuperMap.Geometry.Point(4933.319287022352, -3337.3849141502124),
+                      new SuperMap.Geometry.Point(4960.9674060199022, -3349.3316322355736),
+                      new SuperMap.Geometry.Point(5006.0235999418364, -3358.8890067038628),
+                      new SuperMap.Geometry.Point(5075.3145648369318, -3378.0037556404409),
+                      new SuperMap.Geometry.Point(5305.19551436013, -3376.9669111768926)],
+            roadLine = new SuperMap.Geometry.LineString(points),
+            styleLine = {
+                strokeColor: "blue",
+                strokeWidth: 3,
+                strokeLinecap: "round",
+                strokeDashstyle: "solid"
+            },
+            styleRegion = {
+                strokeColor: "#304DBE",
+                strokeWidth: 2,
+                pointerEvents: "visiblePainted",
+                fillColor: "#304DBE",
+                fillOpacity: 0.4
+            }
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex - 1);
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-changchun/rest/maps/长春市区图";
+            spatialAnalystURL = "http://localhost:8090/iserver/services/spatialanalyst-changchun/restjsr/spatialanalyst";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-changchun/rest/maps/长春市区图";
+            spatialAnalystURL = "http://" + local + "/iserver/services/spatialanalyst-changchun/restjsr/spatialanalyst";
+        }
+        function init() {
+            map = new SuperMap.Map("map", { controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                      })], units: "m"
+            });
+            map.allOverlays = true;
+            baseLayer = new SuperMap.Layer.TiledDynamicRESTLayer("Changchun", url, {transparent: true, cacheEnabled: true}, { maxResolution: "auto" });
+            baseLayer.events.on({ "layerInitialized": addLayer });
+            resultLayer = new SuperMap.Layer.Vector("缓冲区分析结果");
+            vectorLayer = new SuperMap.Layer.Vector("vectorLine");
+
+            var featureLine = new SuperMap.Feature.Vector();
+            featureLine.geometry = roadLine;
+            featureLine.style = styleLine;
+            vectorLayer.addFeatures(featureLine);
+
+
+        }
+        function addLayer() {
+            map.addLayers([baseLayer, resultLayer, vectorLayer]);
+            map.setCenter(new SuperMap.LonLat(5105, -3375), 4);
+        }
+        function bufferAnalystProcess() {
+            resultLayer.removeAllFeatures();
+            var bufferServiceByDatasets = new SuperMap.REST.BufferAnalystService(spatialAnalystURL),
+                bufferDistance = new SuperMap.REST.BufferDistance({
+                    value: 10
+                }),
+                bufferSetting = new SuperMap.REST.BufferSetting({
+                    endType: SuperMap.REST.BufferEndType.ROUND,
+                    leftDistance: bufferDistance,
+                    rightDistance: bufferDistance,
+                    semicircleLineSegment: 10
+                }),
+                filterParameter = new SuperMap.REST.FilterParameter({
+                    attributeFilter: "NAME='团结路'"
+                }),
+                dsBufferAnalystParameters = new SuperMap.REST.DatasetBufferAnalystParameters({
+                    dataset: "RoadLine2@Changchun",
+                    filterQueryParameter: filterParameter,
+                    bufferSetting: bufferSetting
+                });
+            bufferServiceByDatasets.events.on({ "processCompleted": bufferAnalystCompleted, "processFailed": bufferAnalystFailed });
+            bufferServiceByDatasets.processAsync(dsBufferAnalystParameters);
+        }
+
+        function bufferAnalystCompleted(args) {
+            resultLayer.addFeatures(args.result.recordset.features);
+        }
+
+        function bufferAnalystFailed(args) {
+            alert(args.error.errorMsg);
+        }
+
+        function removeResult() {
+            resultLayer.removeAllFeatures();
+        }
+    </script>
+</head>
+<body >
+   <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+               
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="bufferAnalystProcess()"><p>缓</p><p>冲</p><p>区</p><p>分</p><p>析</p></a>
+                </div > 
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="removeResult()"><p>移</p><p>除</p><p>结</p><p>果</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4>描述</h4>
+                        <li>定义：缓冲区分析是 GIS 中基本的空间分析，缓冲区分析实际上是在基本空间要素周围建立具有一定宽度的邻近区域。缓冲区分析多用在，确定道路拓宽的范围，确定放射源影响的范围等方面。 <br />
+                        </li>
+                        <li>缓冲区分析可以应用在点、线和面状地物上，在对线状地物进行缓冲区分析时，可以设置地物的左、右侧缓冲距离，并且可以设置缓冲的端点类型为平头缓冲或者圆头缓冲，当对点和面状地物进行缓冲区分析时，则只需要设置地物的左侧缓冲距离即可，并且缓冲区端点类型只能为圆头缓冲。 
+                        </li>
+                    </ol>
+                    <ol type="1">
+                        <h4>操作说明</h4>
+                        <li>地图中，蓝色线地物为长春市团结路。</li>
+                        <li>点击 “缓冲区分析” 按钮，对“团结路”进行半径 10 米的圆头缓冲区分析，显示的橙色面状区域即为该道路拓宽后的范围;</li>
+                        <li>点击 “移除结果” 按钮，将当前缓冲区分析结果清除。</li>
+                    </ol>                                                       
+                </div>
+            </div>
+        </div>
+   </div> 
+</body>
+</html>

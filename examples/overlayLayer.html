@@ -1,0 +1,136 @@
+﻿<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>SuperMap iClient JavaScript:TiledDynamicRESTLayer</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();   
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, urlWorld, layerWorld, urlJingjin, layerJingjing,
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1);
+        var maxExtent_World = new SuperMap.Bounds(-180, -90, 180, 90),
+                             optionWorld = {
+                                maxExtent: maxExtent_World,
+                                scale: 2.563206512274041E-8,
+                                viewBounds: new SuperMap.Bounds(84.30460372171433,15.704362017314319,108.04279582068568,39.442554116285685),
+                                viewer: new SuperMap.Size(256,256),
+                                resolutions:[0.410958904109589,
+                                             0.2054794520547945,
+                                             0.10273972602739725,
+                                             0.05136986301369863,
+                                             0.025684931506849314,
+                                             0.012842465753424657,
+                                             0.006421232876712328,
+                                             0.003210616438356164,
+                                             0.001605308219178082,
+                                             0.000802654109589041,
+                                             0.0004013270547945205,
+                                             0.00020066352739726026,
+                                             0.00010033176369863013,
+                                             0.000050165881849315066,
+                                             0.000025082940924657533,
+                                             0.000012541470462328766]
+                             };
+        
+        var maxExtent_jingjin = new SuperMap.Bounds(114.74318675873444, 37.89969196534464, 119.25371039075016, 42.14516566427154),
+                                options_jingjin = {
+                                    maxResolution: "auto",
+                                    maxExtent: maxExtent_jingjin,
+                                    viewBounds: new SuperMap.Bounds(116.04615475878154,39.05745216362358,117.77486804404043,40.78616544888247),
+                                    viewer: new SuperMap.Size(256,256),
+                                    scale: 3.5197212340844285E-7,
+                                    resolutions:[
+                                     0.012842465753424657,
+                                     0.006421232876712328,
+                                     0.003210616438356164,
+                                     0.001605308219178082,
+                                     0.000802654109589041,
+                                     0.0004013270547945205,
+                                     0.00020066352739726026,
+                                     0.00010033176369863013,
+                                     0.000050165881849315066,
+                                     0.000025082940924657533,
+                                     0.000012541470462328766]
+                                };
+
+        if (subString == "file") {
+            urlWorld = "http://localhost:8090/iserver/services/map-world/rest/maps/World Map";
+            urlJingjin = "http://localhost:8090/iserver/services/map-jingjin/rest/maps/京津地区人口分布图_专题图";
+        } else {
+            local = document.location.host;
+            urlWorld = "http://" + local + "/iserver/services/map-world/rest/maps/World Map";
+            urlJingjin = "http://" + local + "/iserver/services/map-jingjin/rest/maps/京津地区人口分布图_专题图";
+        }
+        function init() {
+            map = new SuperMap.Map("map",{controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                  })], allOverlays: true
+            });
+            layerWorld = new SuperMap.Layer.TiledDynamicRESTLayer("World", urlWorld, {transparent: true, cacheEnabled: true}, optionWorld);
+            layerJingjing = new SuperMap.Layer.TiledDynamicRESTLayer("京津地区地图", urlJingjin, {transparent: true, cacheEnabled: true},options_jingjin);
+            map.addLayers([layerWorld,layerJingjing]);
+            map.setCenter(new SuperMap.LonLat(118, 40), 6);
+        }
+    </script>
+  </head>
+  <body >
+    <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+              
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                 </div></div >
+                 <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                <ol type="1">
+                    <h4 >描述</h4>
+                    <li>两个 TiledDynamicRESTLayer 叠加显示；
+                    </li>
+                    <li>分块动态图层(TiledDynamicLayer)：将一个完整的地图切割成多个相同大小的正方形块图片，地图就是由这些块图片拼合而成最终呈现的。<br/>
+                        之所以称之为动态图层，是因为这些正方形图块是即时生成，而非事先切好。<br/>
+                        分块动态图层是 SuperMap 特有的图层类型，它特别适用于需要实时更新的数据的显示，例如动态监控交通流量。实际上交通流量是拥有大量车辆分布的点图层，随着车流的变化，点分布也在不断更新，通过动态分块图层便能够十分方便、流程的显示实时数据。 
+                    </li>
+                     
+                </ol>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+  </body>
+</html>

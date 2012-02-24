@@ -1,0 +1,148 @@
+﻿<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>ThemeGraduatedSymbol</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();   
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, baseLayer, layersID, themeLayer, 
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1);
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-jingjin/rest/maps/京津地区人口分布图_专题图";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-jingjin/rest/maps/京津地区人口分布图_专题图";
+        }
+        
+        function init() {
+            map = new SuperMap.Map("map",{controls: [
+                      new SuperMap.Control.LayerSwitcher(), 
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                  })]
+            });
+            baseLayer = new SuperMap.Layer.TiledDynamicRESTLayer("京津地区人口分布图_专题图", url, {transparent: true, cacheEnabled: true}, {maxResolution:"auto"});
+            baseLayer.events.on({"layerInitialized":addLayer});             
+        }    
+        function addLayer() {
+            map.addLayer(baseLayer);
+            map.setCenter(new SuperMap.LonLat(117, 40), 0); 
+            map.allOverlays = true;
+        }
+        function addThemeGraduatedSymbol() {
+            removeTheme();
+            var themeService = new SuperMap.REST.ThemeService(url, {eventListeners:{"processCompleted": themeCompleted, "processFailed": themeFailed}}),
+                graStyle = new SuperMap.REST.ThemeGraduatedSymbolStyle({
+                    positiveStyle: new SuperMap.REST.ServerStyle({
+                        markerSize: 7,
+                        markerSymbolID: 0,
+                        lineColor: new SuperMap.REST.ServerColor(255,165,0),
+                        fillBackColor: new SuperMap.REST.ServerColor(255,0,0)
+                    }),
+                }),
+                themeGraduatedSymbol = new SuperMap.REST.ThemeGraduatedSymbol({
+                    expression: "Pop_1999",
+                    baseValue: 100,
+                    graduatedMode: SuperMap.REST.GraduatedMode.CONSTANT,
+                    flow: new SuperMap.REST.ThemeFlow({
+                        flowEnabled: true
+                    }),
+                    style: graStyle
+                }),
+                themeParameters = new SuperMap.REST.ThemeParameters({
+                    themes: [themeGraduatedSymbol],
+                    datasetNames: ["BaseMap_R"],
+                    dataSourceNames: ["Jingjin"],       
+                });
+
+            themeService.processAsync(themeParameters);
+        }
+        
+        function themeCompleted(themeEventArgs) {
+            if(themeEventArgs.result.resourceInfo.id) {
+                themeLayer = new SuperMap.Layer.TiledDynamicRESTLayer("京津地区人口分布图_专题图", url, {cacheEnabled: false, transparent: true,layersID: themeEventArgs.result.resourceInfo.id},{"maxResolution":"auto"});
+                themeLayer.events.on({"layerInitialized":addThemelayer});                
+            }
+        }
+        function addThemelayer() {
+            map.addLayer(themeLayer);
+        }
+        
+        function themeFailed(serviceFailedEventArgs) {
+            alert(serviceFailedEventArgs.error.errorMsg);
+        }
+        
+        function removeTheme() {
+            if (map.layers.length > 1) {
+                map.removeLayer(themeLayer, baseLayer);
+            }
+        }
+    </script>
+  </head>
+  <body >
+         <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+               
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="addThemeGraduatedSymbol()"><p>创</p><p>建</p><p>专</p><p>题</p><p>图</p></a>
+                </div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="removeTheme()"><p>移</p><p>除</p><p>专</p><p>题</p><p>图</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4 >描述</h4>
+                        <li>定义：等级符号专题图是采用不同的形状、颜色和大小的符号，表示各自独立的、以整体概念显示的各个物体的数量与质量特征。<br/>
+                            通常，以符号的形状、颜色和大小反映物体的特定属性；符号的形状与颜色表示质量特征，符号的大小表示数量特征。</li>
+                        <li>等级符号专题图多用于具有数量特征的地图上，比如表示不同地区的粮食产量、GDP、人口等的分级，也就是说，用于制作等级符号专题图的专题变量类型为数值型。</li>
+                    </ol>
+                    <ol type="1">
+                        <h4 >操作说明</h4>
+                        <li>对京津地区 1999 年人口数目制作等级符号专题图，基准值为 100 万；</li>
+                        <li>点击 “创建专题图” 按钮，生成等级符号专题图；</li>
+                        <li>点击 “移除专题图” 按钮，清除当前专题图。</li>            
+                    </ol>                                         
+                </div>
+            </div>
+    </div>
+   </div>     
+  </body>
+</html>

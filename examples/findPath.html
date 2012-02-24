@@ -1,0 +1,202 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>FindPath</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var url, findPathUrl, local, map, layer, vectorLayer, markerLayer,
+            drawPoint, style, nodeArray = [], pathTime, i = 0, j = 0,
+            style = {
+                strokeColor: "#304DBE",
+                strokeWidth: 3,
+                pointerEvents: "visiblePainted",
+                fill: false
+            },
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex - 1);
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-changchun/rest/maps/长春市区图";
+            findPathUrl = "http://localhost:8090/iserver/services/transportationanalyst-sample/rest/networkanalyst/RoadNet@Changchun";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-changchun/rest/maps/长春市区图";
+            findPathUrl = "http://" + local + "/iserver/services/transportationanalyst-sample/rest/networkanalyst/RoadNet@Changchun";
+        }
+        function init() {
+            vectorLayer = new SuperMap.Layer.Vector("Vector Layer");
+            drawPoint = new SuperMap.Control.DrawFeature(vectorLayer, SuperMap.Handler.Point);
+            drawPoint.events.on({ "featureadded": drawCompleted });
+            map = new SuperMap.Map("map", { controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                      }),
+                      drawPoint], units: "m"
+            });
+            layer = new SuperMap.Layer.TiledDynamicRESTLayer("Changchun", url, {transparent: true, cacheEnabled: true}, { maxResolution: "auto" });
+            layer.events.on({ "layerInitialized": addLayer });
+            markerLayer = new SuperMap.Layer.Markers("Markers");
+
+        }
+        function addLayer() {
+            map.addLayers([layer, vectorLayer, markerLayer]);
+            map.setCenter(new SuperMap.LonLat(4503.6240321526, -3861.911472192499), 0);
+        }
+        function selectPoints() {
+            clearElements();
+            drawPoint.activate();
+        }
+        function drawCompleted(drawGeometryArgs) {
+            var point = drawGeometryArgs.feature.geometry,
+                size = new SuperMap.Size(44, 33),
+                offset = new SuperMap.Pixel(-(size.w / 2), -size.h),
+                icon = new SuperMap.Icon("../resource/controlImages/marker.png", size, offset);
+            markerLayer.addMarker(new SuperMap.Marker(new SuperMap.LonLat(point.x, point.y), icon));
+            nodeArray.push(point);
+        }
+        function findPath() {
+            drawPoint.deactivate();
+            var findPathService, parameter, analystParameter, resultSetting;
+            resultSetting = new SuperMap.REST.TransportationAnalystResultSetting({
+                returnEdgeFeatures: true,
+                returnEdgeGeometry: true,
+                returnEdgeIDs: true,
+                returnNodeFeatures: true,
+                returnNodeGeometry: true,
+                returnNodeIDs: true,
+                returnPathGuides: true,
+                returnRoutes: true
+            });
+            analystParameter = new SuperMap.REST.TransportationAnalystParameter({
+                resultSetting: resultSetting,
+                weightFieldName: "length"
+            });
+            parameter = new SuperMap.REST.FindPathParameters({
+                isAnalyzeById: false,
+                nodes: nodeArray,
+                hasLeastEdgeCount: false,
+                parameter: analystParameter
+            });
+            if (nodeArray.length <= 1) {
+                alert("站点数目有误");
+            }
+            findPathService = new SuperMap.REST.FindPathService(findPathUrl, {
+                eventListeners: { "processCompleted": processCompleted }
+            });
+            findPathService.processAsync(parameter);
+        }
+        function processCompleted(findPathEventArgs) {
+            result = findPathEventArgs.result;
+            allScheme(result);
+        }
+        function allScheme(result) {
+            if (i < result.pathList.length) {
+                addPath(result);
+            } else {
+                i = 0;
+            }
+        }
+        //以动画效果显示分析结果
+        function addPath(result) {
+            if (j < result.pathList[i].route.points.length) {
+                var pathFeature = new SuperMap.Feature.Vector();
+                var points = [];
+                for (var k = 0; k < 2; k++) {
+                    if (result.pathList[i].route.points[j + k]) {
+                        points.push(new SuperMap.Geometry.Point(result.pathList[i].route.points[j + k].x, result.pathList[i].route.points[j + k].y));
+                    }
+                }
+                var curLine = new SuperMap.Geometry.LinearRing(points);
+                pathFeature.geometry = curLine;
+                pathFeature.style = style;
+                vectorLayer.addFeatures(pathFeature);
+
+                //每隔0.001毫秒加载一条弧段
+                pathTime = setTimeout(function () { addPath(result); }, 0.001);
+                j++;
+            } else {
+                clearTimeout(pathTime);
+                j = 0;
+                i++;
+                allScheme(result);
+            }
+        }
+        function clearElements() {
+            n = 0;
+            i = 0;
+            j = 0;
+            nodeArray = [];
+            vectorLayer.removeAllFeatures();
+            markerLayer.clearMarkers();
+        }
+    </script>
+</head>
+<body >
+   <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+               
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="selectPoints()"><p>选</p><p>择</p><p>站</p><p>点</p></a>
+                </div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="findPath()"><p>提</p><p>交</p></a>
+                </div>
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="clearElements()"><p>清</p><p>除</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4>描述</h4>
+                        <li>定义：最佳路径是在网络数据集中指定一些结点，必须按照顺序访问结点从而求解起止点之间阻抗最小的路径。例如如果要顺序访问 1、2、3、4 四个结点，则需要分别找到 1、2 结点间的最佳路径 R1—2，2、3 间的最佳路径 R2—3 和 3、4 结点间的最佳路径 R3—4，顺序访问 1、2、3、4 四个结点的最佳路径就是 R = R1—2 + R2—3 + R3—4。</li>
+                        <li>“阻抗最小”有多种理解，如基于单因素考虑的时间最短、费用最低、风景最好、路况最佳、过桥最少、收费站最少、经过乡村最多等，和基于多因素综合考虑的风景最好且经过乡村较多或者时间较短、路况较佳且收费站最少等。</li>
+                    </ol>
+                    <ol type="1">
+                        <h4>操作说明</h4>
+                        <li>点击 “选择站点” 按钮，然后在地图中选择您要行走的地点(结点)；</li>
+                        <li>点击 “提交” 按钮，，即可以即时看到两点间的最佳路径；</li>
+                        <li>点击 “清除” 按钮，清除当前选择的站点及分析结果。</li>
+                    </ol>                                                       
+                </div>
+            </div>
+        </div>
+   </div> 
+</body>
+</html>

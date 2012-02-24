@@ -1,0 +1,169 @@
+﻿<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>QueryByBounds</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局  
+            adjustSubFrame();
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, layer, vectorLayer, control, queryBounds, markerLayer,
+            style = {
+                strokeColor: "#304DBE",
+                strokeWidth: 1,
+                pointerEvents: "visiblePainted",
+                fillColor: "#304DBE",
+                fillOpacity: 0.3
+            },
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1); 
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-world/rest/maps/World Map";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-world/rest/maps/World Map";
+        }
+        function init() {
+            map = new SuperMap.Map("map",{controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                  })]
+            });
+            layer = new SuperMap.Layer.TiledDynamicRESTLayer("World", url, {transparent: true, cacheEnabled: true},{maxResolution:"auto"}); 
+            layer.events.on({"layerInitialized":addLayer});    
+            vectorLayer = new SuperMap.Layer.Vector("Vector Layer");//新建一个vectorLayer的矢量图层
+            markerLayer = new SuperMap.Layer.Markers("Markers");//创建一个有标签的图层
+        }
+
+        function addLayer() {
+            map.addLayers([layer, vectorLayer, markerLayer]);
+            map.setCenter(new SuperMap.LonLat(0, 0), 0);
+        }            
+        function drawGeometry() {
+            //先清除上次的显示结果
+            vectorLayer.removeAllFeatures();//清除矢量地图上的所有特征和元素
+            markerLayer.clearMarkers();//清除图层的标签
+
+            control = new SuperMap.Control();
+            SuperMap.Util.extend(control, {//Util工具类   extend指的是将复制所有的属性的源对象到目标对象
+                draw: function () {
+                    this.box = new SuperMap.Handler.Box(control,{"done": this.notice});//此句是创建一个句柄，Box是一个处理地图拖放一个矩形的事件，这个矩形显示是开始于在按下鼠标，然后移动鼠标，最后完成在松开鼠标。
+                    this.box.boxDivClassName = "qByBoundsBoxDiv";//boxDivClassName用于绘制这个矩形状的图形
+                    this.box.activate();//激活句柄
+                },
+                //将拖动的矩形显示在地图上
+                notice: function (bounds) {
+                    this.box.deactivate();//处理关闭激活句柄
+
+                    var ll = map.getLonLatFromPixel(new SuperMap.Pixel(bounds.left, bounds.bottom)),//getLonLatFromPixel从视口坐标获得地理坐标
+                        ur = map.getLonLatFromPixel(new SuperMap.Pixel(bounds.right, bounds.top));
+                    queryBounds = new SuperMap.Bounds(ll.lon, ll.lat, ur.lon, ur.lat);
+
+                    var feature = new SuperMap.Feature.Vector();
+                    feature.geometry = queryBounds.toGeometry(),
+                    feature.style = style;
+                    vectorLayer.addFeatures(feature);
+
+                    var queryParam, queryByBoundsParams, queryService;
+                    queryParam = new SuperMap.REST.FilterParameter({name: "Capitals@World"});//FilterParameter设置查询条件，name是必设的参数，（图层名称格式：数据集名称@数据源别名）
+                    queryByBoundsParams = new SuperMap.REST.QueryByBoundsParameters({queryParams: [queryParam], bounds: queryBounds});//queryParams查询过滤条件参数数组。bounds查询范围
+                    queryService = new SuperMap.REST.QueryByBoundsService(url, {
+                        eventListeners: {
+                            "processCompleted": processCompleted,
+                            "processFailed": processFailed
+                        }
+                    });
+                    queryService.processAsync(queryByBoundsParams);//向服务端传递参数，然后服务端返回对象
+                }
+            });
+            map.addControl(control);
+        }
+        function processCompleted(queryEventArgs) {
+            var i, j, result = queryEventArgs.result;//queryEventArgs服务端返回的对象
+            if (result && result.recordsets) {
+                for (i=0, recordsets=result.recordsets, len=recordsets.length; i<len; i++) {
+                    if (recordsets[i].features) {
+                        for (j=0; j<recordsets[i].features.length; j++) {
+                            var point = recordsets[i].features[j].geometry,
+                                size = new SuperMap.Size(44, 33),
+                                offset = new SuperMap.Pixel(-(size.w/2), -size.h),
+                                icon = new SuperMap.Icon("../resource/controlImages/marker.png", size, offset);
+                            markerLayer.addMarker(new SuperMap.Marker(new SuperMap.LonLat(point.x, point.y), icon));
+                        }
+                    }
+                }
+            }
+        }
+        function processFailed(e) {
+            alert(e.error.errorMsg);
+        }
+        function clearFeatures() {
+            vectorLayer.removeAllFeatures();
+            markerLayer.clearMarkers();
+        }
+        
+    </script>
+  </head>
+  <body >
+    <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+              
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                 </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="drawGeometry()"><p>查</p><p>询</p></a>
+                </div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="clearFeatures()"><p>清</p><p>除</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4>描述</h4>
+                        <li>定义：对地图图层的 Bounds 查询，在一个或多个指定的图层上查询指定 Bounds 范围内的空间地物信息。</li>
+                        <li>Bounds 查询与 Geometry 查询相似，不同的是，Bounds 查询指定的范围为 Bounds，非 Geometry 信息，且使用起来较 Geometry 查询更加方便快捷。</li>
+                    </ol>
+                    <ol type="1">
+                        <h4>操作说明</h4>
+                        <li>点击 “查询” 按钮，在地图中点击鼠标，然后拖动鼠标，最后释放鼠标，完成添加矩形（指定的Bounds），查询并显示矩形区域内的首都；</li>
+                        <li>点击 “清除” 按钮，清除当前的查询结果。</li>             
+                    </ol>                                         
+                </div>
+            </div>
+    </div>
+   </div>
+  </body>
+</html>

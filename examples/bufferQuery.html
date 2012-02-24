@@ -1,0 +1,246 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>BufferQuery</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script> 
+    <script type="text/javascript">
+         $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var url, spatialAnalystURL, local, map, layer, vectorLayer, resultLayer, markerLayer, gpsLine, bufferResultGeometry, 
+            myPointsList = [new SuperMap.Geometry.Point(2823.940, -4690.000),
+                            new SuperMap.Geometry.Point(3448.940, -4690.301),
+                            new SuperMap.Geometry.Point(3816.561, -3810.125), 
+                            new SuperMap.Geometry.Point(3917.383, -3609.158), 
+                            new SuperMap.Geometry.Point(3976.983, -3490.291),  
+                            new SuperMap.Geometry.Point(4020.004, -4377.027), 
+                            new SuperMap.Geometry.Point(4076.265, -4382.939), 
+                            new SuperMap.Geometry.Point(4215.049, -4382.333), 
+                            new SuperMap.Geometry.Point(4428.156, -4382.285), 
+                            new SuperMap.Geometry.Point(4647.579, -4383.017), 
+                            new SuperMap.Geometry.Point(4679.707, -4382.898), 
+                            new SuperMap.Geometry.Point(4917.462, -4382.635), 
+                            new SuperMap.Geometry.Point(5074.019, -4381.833), 
+                            new SuperMap.Geometry.Point(5257.042, -4381.031), 
+                            new SuperMap.Geometry.Point(5363.785, -4380.717), 
+                            new SuperMap.Geometry.Point(5671.717, -4378.794), 
+                            new SuperMap.Geometry.Point(5847.521, -4377.970), 
+                            new SuperMap.Geometry.Point(5990.637, -4303.528), 
+                            new SuperMap.Geometry.Point(6055.343, -4270.072), 
+                            new SuperMap.Geometry.Point(6168.913, -4382.389), 
+                            new SuperMap.Geometry.Point(6214.183, -4209.927), 
+                            new SuperMap.Geometry.Point(6377.789, -4209.142), 
+                            new SuperMap.Geometry.Point(6393.692, -4210.142), 
+                            new SuperMap.Geometry.Point(6693.989, -4207.450), 
+                            new SuperMap.Geometry.Point(6788.392, -4208.450), 
+                            new SuperMap.Geometry.Point(6984.304, -4207.210), 
+                            new SuperMap.Geometry.Point(7189.183, -4208.296), 
+                            new SuperMap.Geometry.Point(7300.505, -4208.296), 
+                            new SuperMap.Geometry.Point(7573.056, -4208.803), 
+                            new SuperMap.Geometry.Point(7680.977, -4208.804), 
+                            new SuperMap.Geometry.Point(7850.593, -4208.393),
+                            new SuperMap.Geometry.Point(8182.656, -4210.533), 
+                            new SuperMap.Geometry.Point(8554.893, -4261.485)],
+            myFeatures = [],
+            stylePoint = {
+                strokeColor: "black",
+                strokeOpacity: 1,
+                strokeDashstyle: "solid",
+                fillColor: "black",
+                pointRadius: 2
+            },
+            styleLine = {
+                strokeColor: "red",
+                strokeWidth: 2,
+                pointRadius: 3,
+                pointerEvents: "visiblePainted",
+                fill: false
+            },
+            styleRegion = {
+                strokeColor: "#304DBE",
+                strokeWidth: 2,
+                pointerEvents: "visiblePainted",
+                fillColor: "#304DBE",
+                fillOpacity: 0.4
+            }
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex - 1);
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-changchun/rest/maps/长春市区图";
+            spatialAnalystURL = "http://localhost:8090/iserver/services/spatialanalyst-changchun/restjsr/spatialanalyst";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-changchun/rest/maps/长春市区图";
+            spatialAnalystURL = "http://" + local + "/iserver/services/spatialanalyst-changchun/restjsr/spatialanalyst";
+        }
+        function init() {
+            vectorLayer = new SuperMap.Layer.Vector("Vector Layer");
+            resultLayer = new SuperMap.Layer.Vector("Result Layer");
+            markerLayer = new SuperMap.Layer.Markers("Markers Layer");
+            map = new SuperMap.Map("map",{controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                    })], units: "m"
+            });
+            layer = new SuperMap.Layer.TiledDynamicRESTLayer("Changchun", url, {transparent: true, cacheEnabled: true}, {maxResolution: "auto"});
+            layer.events.on({"layerInitialized":addLayer});
+            for (var i = 0; i < myPointsList.length; i++){
+                myFeature = new SuperMap.Feature.Vector();
+                myFeature.geometry = myPointsList[i];
+                myFeature.style = stylePoint;
+                myFeatures.push(myFeature);
+            }
+            vectorLayer.addFeatures(myFeatures);
+
+        }
+        function addLayer() {
+            map.addLayers([layer, vectorLayer, resultLayer, markerLayer]);
+            map.setCenter(new SuperMap.LonLat(4503.6240321526, -3861.911472192499), 0);
+        }
+        //将离散gps信号点生成线路
+        function addPath(){
+                var pathFeature=  new SuperMap.Feature.Vector();
+                gpsLine = new SuperMap.Geometry.LineString(myPointsList);
+                pathFeature.geometry = gpsLine;
+                pathFeature.style = styleLine;
+                resultLayer.addFeatures(pathFeature);
+        }
+        //对生成的线路进行缓冲区分析
+        function  bufferAnalystProcess() {
+            var bufferServiceByGeometry = new SuperMap.REST.BufferAnalystService(spatialAnalystURL),
+                bufferDistance = new SuperMap.REST.BufferDistance({
+                    value: 250
+                }),
+                bufferSetting = new SuperMap.REST.BufferSetting({
+                    endType: SuperMap.REST.BufferEndType.ROUND,
+                    leftDistance: bufferDistance,
+                    rightDistance: bufferDistance,
+                    semicircleLineSegment: 10
+                }),
+                geoBufferAnalystParam = new SuperMap.REST.GeometryBufferAnalystParameters({
+                    sourceGeometry: gpsLine,
+                    bufferSetting: bufferSetting
+                });        
+            
+            bufferServiceByGeometry.events.on(
+            {
+                "processCompleted": bufferAnalystCompleted, 
+            });
+            bufferServiceByGeometry.processAsync(geoBufferAnalystParam);
+        }
+        function bufferAnalystCompleted(BufferAnalystEventArgs) {
+            var feature = new SuperMap.Feature.Vector();
+            bufferResultGeometry = BufferAnalystEventArgs.result.resultGeometry;
+            feature.geometry = bufferResultGeometry;
+            feature.style = styleRegion;
+            resultLayer.addFeatures(feature);
+        }
+        //查询出信号影响范围内的工厂
+        function queryByGeometry(){
+            var queryParam, queryByGeometryParameters, queryService;
+            queryParam = new SuperMap.REST.FilterParameter({name: "Company@Changchun.2"});
+            queryByGeometryParameters = new SuperMap.REST.QueryByGeometryParameters({
+                queryParams: [queryParam], 
+                geometry: bufferResultGeometry,
+                spatialQueryMode: SuperMap.REST.SpatialQueryMode.INTERSECT
+            });
+            queryService = new SuperMap.REST.QueryByGeometryService(url);
+            queryService.events.on(
+            {
+                "processCompleted": queryCompleted,
+            });
+            queryService.processAsync(queryByGeometryParameters);
+        }
+        function queryCompleted(queryEventArgs) {
+            var i, j, result = queryEventArgs.result;
+            if (result && result.recordsets) {
+                for (i=0, recordsets=result.recordsets, len=recordsets.length; i<len; i++) {
+                    if (recordsets[i].features) {
+                        for (j=0; j<recordsets[i].features.length; j++) {
+                            var point = recordsets[i].features[j].geometry,
+                                size = new SuperMap.Size(44,40),
+                                offset = new SuperMap.Pixel(-(size.w/2), -size.h),
+                                icon = new SuperMap.Icon("../resource/controlImages/marker-gold.png", size, offset);
+                            markerLayer.addMarker(new SuperMap.Marker(new SuperMap.LonLat(point.x, point.y), icon));
+                        }
+                    }
+                }
+            }
+        }
+        function clearElements() {
+            resultLayer.removeAllFeatures();
+            markerLayer.clearMarkers();
+        }
+    </script>
+</head>
+<body >
+  <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+               
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="addPath()"><p>生</p><p>成</p><p>路</p><p>径</p></a>
+                </div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="bufferAnalystProcess()"><p>缓</p><p>冲</p><p>区</p><p>分</p><p>析</p></a>
+                </div>
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="queryByGeometry()"><p>查</p><p>询</p></a>
+                </div>
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="clearElements()"><p>清</p><p>除</p><p>显</p><p>示</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >
+                
+                    <ol type="1">
+                        <h4>描述</h4>
+                        <li>本综合应用案例是对 gps 信号点进行历史轨迹的生成，并对信号影响的区域进行分析，查询并显示出受此 gps 信号影响的工厂。
+                        </li>
+                    </ol>
+                    <ol type="1">
+                        <h4>操作说明</h4>
+                        <li>地图中的离散点代表 gps 信号采集点</li>
+                        <li>点击 “轨迹生成” 按钮，将地图上的 gps 信号点生历史轨迹；</li>
+                        <li>点击 “缓冲区分析” 按钮，对 gps 点所构成的线路进行缓冲区分析；</li>
+                        <li>点击“查询” 按钮，对 gps 信号影响到的工厂进行查询并显示</li>
+                        <li>点击 “清除显示” 按钮，清除分析及查询结果。</li>
+                    </ol>                                                       
+                </div>
+            </div>
+        </div>
+   </div> 
+</body>
+</html>

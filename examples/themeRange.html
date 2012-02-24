@@ -1,0 +1,165 @@
+﻿<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>ThemeRange</title>
+    <link rel="stylesheet"  href="./css/style.css" />
+    <script src="./js/jquery-1.7.min.js"></script>
+    <script src="./js/common.js"></script>
+    <script src="../libs/SuperMap.Include.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // 调整子页面布局
+            adjustSubFrame();
+            // 子页面事件响应函数封装
+            clickmessage();
+            // 地图初始化
+            init();
+        });
+
+        var map, local, baseLayer, layersID, themeLayer,
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1);
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-jingjin/rest/maps/京津地区人口分布图_专题图";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-jingjin/rest/maps/京津地区人口分布图_专题图";
+        } 
+        
+        function init() {
+            map = new SuperMap.Map("map",{controls: [
+                      new SuperMap.Control.LayerSwitcher(),
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation({
+                          dragPanOptions: {
+                              enableKinetic: true
+                          }
+                  })]
+            });
+            baseLayer = new SuperMap.Layer.TiledDynamicRESTLayer("京津地区人口分布图_专题图", url, {transparent: true, cacheEnabled: true}, {maxResolution:"auto"});
+            baseLayer.events.on({"layerInitialized":addLayer});            
+
+        }
+        function addLayer() {
+            map.addLayer(baseLayer);
+            map.setCenter(new SuperMap.LonLat(117, 40), 0);
+            map.allOverlays = true;            
+        }        
+        function addThemeRange() {
+            removeTheme();
+            var themeService = new SuperMap.REST.ThemeService(url, {eventListeners:{"processCompleted": themeCompleted, "processFailed": themeFailed}}),
+                style1 = new SuperMap.REST.ServerStyle({
+                    fillForeColor: new SuperMap.REST.ServerColor(137,203,187),
+                    lineColor: new SuperMap.REST.ServerColor(137,203,187)
+                }),
+                style2 = new SuperMap.REST.ServerStyle({
+                    fillForeColor: new SuperMap.REST.ServerColor(233,235,171),
+                    lineColor: new SuperMap.REST.ServerColor(233,235,171)
+                }),
+                style3 = new SuperMap.REST.ServerStyle({
+                    fillForeColor: new SuperMap.REST.ServerColor(135,157,157),
+                    lineColor: new SuperMap.REST.ServerColor(135,157,157)
+                }),
+                themeRangeIteme1 = new SuperMap.REST.ThemeRangeItem({
+                    start: 0.0,
+                    end: 42.5,
+                    style: style1
+                }),
+                themeRangeIteme2 = new SuperMap.REST.ThemeRangeItem({
+                    start: 42.5,
+                    end: 59.7,
+                    style: style2
+                }),
+                themeRangeIteme3 = new SuperMap.REST.ThemeRangeItem({
+                    start: 59.7,
+                    end: 912.11,
+                    style: style3
+                }),
+                themeRange = new SuperMap.REST.ThemeRange({
+                    rangeExpression: "Pop_1999",
+                    rangeMode: SuperMap.REST.RangeMode.EQUALINTERVAL,
+                    items: [themeRangeIteme1,themeRangeIteme2,themeRangeIteme3]
+                }),
+                themeParameters = new SuperMap.REST.ThemeParameters({
+                    datasetNames: ["BaseMap_R"],
+                    dataSourceNames: ["Jingjin"], 
+                    joinItems: null,
+                    themes: [themeRange]
+            });
+
+            themeService.processAsync(themeParameters);
+        }
+        
+        function themeCompleted(themeEventArgs) {
+            if(themeEventArgs.result.resourceInfo.id) {
+                themeLayer = new SuperMap.Layer.TiledDynamicRESTLayer("京津地区人口分布图_专题图", url, {cacheEnabled:false,transparent: true,layersID: themeEventArgs.result.resourceInfo.id}, {"maxResolution":"auto"});   
+                themeLayer.events.on({"layerInitialized":addThemelayer});
+
+            }
+        }
+        function addThemelayer() {
+            map.addLayer(themeLayer);
+        }
+        function themeFailed(serviceFailedEventArgs) {
+            alert(serviceFailedEventArgs.error.errorMsg);
+        }
+        
+        function removeTheme() {
+            if (map.layers.length > 1) {
+                map.removeLayer(themeLayer, baseLayer);
+            }
+        }
+    </script>
+  </head>
+  <body>
+      <div id="core" >
+        <div id="map" >             
+        </div>
+        <div id="description">
+            <div>
+               <div id="nav" >
+                <a href="javascript:void(0)" target="_self" class="add-big" ></a>
+               
+                <div  class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" style="padding:2px 5px 5px 5px;"><p>描</p><p>述</p></a>
+                </div></div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="addThemeRange()"><p>创</p><p>建</p><p>专</p><p>题</p><p>图</p></a>
+                </div > 
+                <div class="btn">
+                    <a href="javascript:void(0)" target="_self" class="button2" onclick="removeTheme()"><p>移</p><p>除</p><p>专</p><p>题</p><p>图</p></a>
+                </div>
+                <div class="btn"> <a href="javascript:void(0)" target="_self" class="button2" onclick="showSource()"><p>显</p><p>示</p><p>源</p><p>码</p></a>
+                </div>
+            </div>
+         </div>
+        <div id="all">
+            <div id="button3">
+                    <p id="com_a"></p>
+            </div>
+            <div id="subcontent">
+                <div id="message" >                
+                    <ol type="1">
+                        <h4>描述</h4>
+                        <li>定义：范围分段专题图是按照指定的分段方法（如：等距离分段法）对字段的属性值进行分段，使用不同的颜色或符号（线型、填充）表示不同范围段落的属性值在整体上的分布情况，体现区域的差异。</li>
+                        <li>在分段专题图中，专题值按照某种分段方式被分成多个范围段，要素根据各自的专题值被分配到其中一个范围段中，在同一个范围段中的要素使用相同的颜色，填充，符号等风格进行显示。<br/>
+                            分段专题图所基于的专题变量必须为数值型，分段专题图一般用来反映连续分布现象的数量或程度特征，如降水量的分布，土壤侵蚀强度的分布等。
+                        </li>
+                    </ol>
+                    <ol type="1">
+                        <h4>操作说明</h4>
+                        <li>该范例展示根据 1999 年京津地区人口数目制作的分段专题图（根据人口密度分为三段：其中黄色代表 0.0~42.5 万，绿色代表 42.5~59.7 万，灰蓝色代表 59.7~912.1 万）；</li>
+                        <li>点击 “创建专题图” 按钮，即可看到各地区人口数目的标签专题图；</li>
+                        <li>点击 “移除专题图” 按钮，清除当前专题图。</li>                    
+                    </ol>                                         
+                </div>
+            </div>
+        </div>        
+    </div>       
+  </body>
+</html>
