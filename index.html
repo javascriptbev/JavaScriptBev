@@ -1,0 +1,642 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  minimum-scale=1.0, user-scalable=0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="stylesheet" type="text/css" href="./examples/css/SuperMapHelp.css">
+    <title>SuperMap iClient for JavaScript</title>
+    <link rel="stylesheet"  href="./examples/css/style.css" />   
+    <script language="JavaScript" src="./examples/js/ajax2008.js"></script>	
+    <script src="./examples/js/jquery-1.7.min.js"></script>
+    <script src="./examples/js/jquery.corner.js"></script>
+    <script src="./examples/js/common.js"></script>
+	<script src="./libs/SuperMap.Include.js"></script>
+	<script>
+		var map, local, url, layer,
+            htmlUrl = document.location.toString(),
+            stringIndex = htmlUrl.indexOf("//"),
+            subString = htmlUrl.substring(0, stringIndex-1);
+
+        if (subString == "file") {
+            url = "http://localhost:8090/iserver/services/map-world/rest/maps/World Map";
+        } else {
+            local = document.location.host;
+            url = "http://" + local + "/iserver/services/map-world/rest/maps/World Map";
+        }
+		function init() {
+			map = new SuperMap.Map("map",{controls: [                      
+					  new SuperMap.Control.ScaleLine(),
+					  new SuperMap.Control.PanZoom(),
+					  new SuperMap.Control.Navigation({
+						  dragPanOptions: {
+							  enableKinetic: true
+						  }
+				  })]
+			});
+			layer = new SuperMap.Layer.TiledDynamicRESTLayer("World", url, {transparent: true, cacheEnabled: true}, {maxResolution:"auto"}); 
+			layer.events.on({"layerInitialized": addLayer});       
+		}
+		
+		function addLayer() {
+            map.addLayer(layer);
+            map.setCenter(new SuperMap.LonLat(0, 0), 0);
+        }
+	</script>
+<script>
+    var singleMessage = [],
+        subClassContent = [],
+        allClassContent = [],
+        mainClass = [];
+		iscreate = false;
+    $(document).ready(function () {
+        // 调整页面布局
+        adjustFrame();
+        // 获取范例内容
+        getExampleContent();
+		menuclick("main_interdoce")
+        // 调整li列按钮位置，每次范例分类点击变化时达到自适应
+        adjustButtonPosition();
+        // IE8浏览器差异问题处理
+        adjustBrowerDiff();
+
+        $(window).resize(function () {
+            adjustFrame();
+        });
+		menuclick("main_interdoce");		
+    });
+
+    // 获取对应li的html元素
+    function createInfo(url, number, headText, info) {
+        return " <li onclick = liclick('" + url + "')> <a href='javascript:void(0)' target='_self' ><span href='#' class='button'> " + number + " </span><span class='space' /><h >" + headText + "</h> <span class='titlecontent'>" + info + "</span></a></li>";
+    }
+
+    // li点击响应事件
+    function liclick(url) {
+        url ="examples/" + url;
+        var strOS = detectOS();
+        // mobile下直接跳转至该页，不采用frame方式
+        if (strOS == "Mobile") {
+            window.location.href = url;
+            $("#radiolist").show();
+            $("#subcorner").show();
+
+            $("#frame").attr("src", url);
+            $("#frame").attr("opacity" ,"0");
+            $("#return").css("display", "none");
+        }
+        else {
+            $("#radiolist").hide();
+            $("#subcorner").hide();
+
+            $("#frame").animate({ opacity: "1" }, "fast");
+            $("#frame").attr("src", url);
+            $("#return").css("display", "inline-block");
+        }
+        
+    }
+
+    // 返回按钮响应事件
+    function aclick() {
+        $("#frame").css("opacity", "0");
+        $("#return").css("display", "none");
+        $("#radiolist").show("fast");
+        $("#subcorner").show("fast");
+    };    
+
+    // 左侧分类菜单点击事件
+    function menuclick(txt) {
+        $("#rightcontent").empty();        
+        var children = $("#subcontent > div");        
+        for(var i = 0; i < children.length; i++){
+            $(children[i]).hide();
+        }                
+        if (txt == "all") {
+            var rUL = document.querySelector("#rightcontent");
+            rUL.innerHTML = allClassContent.join("");    
+            // 调整li列按钮位置，每次范例分类点击变化时达到自适应
+            adjustButtonPosition();
+            // IE8 radio css风格不一致代码处理
+            radioclickBrowserDiff();
+        }else{			
+			radioclickBrowserDiff();
+			var selector = $("#"+txt);
+			selector.show();
+			if(txt == "main_quickStart" && !iscreate){
+				init();
+				iscreate = true;
+			}
+        }
+    };
+
+    // 调整页面布局
+    function adjustFrame() {
+        var nHeight = pageHeight() + 2;
+        $("#page").css("height", nHeight);
+
+        // 固定header和footer最小高度
+       
+        var nValue = $("#header").height() + $("#footer").height();
+        $("#content").css("height", nHeight - nValue + 'px');
+        $("#corner").css("height", nHeight - nValue + 20 + 'px');
+        
+
+        var strOS = detectOS();
+        var nWidth = pageWidth();
+        if (nWidth < 1024 || strOS=="Mobile") {
+            $("#corner").css("width", "100%");
+            $("#corner").css("left", "0%");
+        }
+        else {
+            $("#corner").css("width", "1024px");
+        }
+
+        var nCornerWidth = $("#corner").width();
+        var nLeft = (nWidth - nCornerWidth) / 2;
+        $("#corner").css("left", nLeft + 'px');
+        $("#header h1").css("left", nLeft + 6 + 'px');
+        $("#help").css("left", nLeft + 15 + 'px');
+        $("#fullScreen").css("left", nLeft + 22 + 'px');
+        $("#cancelFullScreen").css("left", nLeft + 22 + 'px');
+        $("#return").css("right", nLeft  + 'px');
+
+        if (strOS=="Mobile") {
+            $(".label").hover(function () {
+                $(this).css("opacity", "1.0");
+                $(this).css("filter", "alpha(opacity=100)");
+            });
+        }
+    };
+
+    // 调整li列按钮位置，每次范例分类点击变化时达到自适应
+    function adjustButtonPosition() {
+        var nHeight = $(".button").width();
+        $(".button").css("height", nHeight);
+        $(".button").css("line-height", nHeight + "px");
+    };
+
+    // IE8浏览器差异问题处理
+    function adjustBrowerDiff() {
+        if ($.browser.msie) {
+            var _version = navigator.appVersion;
+            if (_version.indexOf('MSIE 9.0') <= 0) {
+                $("#corner").corner("cc:#373737");
+                $(".titlecontent").css("margin", "-1% 0% 2% 6%")
+
+                $(document.getElementsByTagName("label")[0]).addClass("labelactive").removeClass("label");
+
+                $(".label").click(function () {
+                    $(this).addClass("labelactive").removeClass("label");
+                })
+
+                $(".labelactive").click(function () {
+                    $(this).addClass("labelactive").removeClass("label");
+                })
+            }
+            if (_version.indexOf('MSIE 9.0') > 0) {
+                $(".space").css("padding", "0")
+            }
+        }
+    };
+
+    // IE8 radio css风格不一致代码处理
+    function radioclickBrowserDiff() {
+        var _version = navigator.appVersion;
+        var labels = document.getElementsByTagName("label");
+        for (var i = 0; i < labels.length; i++) {
+            var label = labels[i];
+            $(label).addClass("label").removeClass("labelactive");
+        }
+
+        if (_version.indexOf('MSIE 9.0') > 0) {
+            $(".space").css("padding", "0")
+        }
+    }
+
+    // 获取范例内容
+    function getExampleContent() {
+        //1REST地图服务 2
+        singleMessage.push(createInfo("tiledDynamicRESTLayer.html", 1, "地图动态图层", "该范例展示 SuperMap iServer Java 6R 服务提供的基于 REST 类型的地图服务的一种分块动态图层。"));
+        allClassContent.push(createInfo("tiledDynamicRESTLayer.html", allClassContent.length + 1, "地图动态图层", "该范例展示 SuperMap iServer Java 6R 服务提供的基于 REST 类型的地图服务的一种分块动态图层。"));
+        singleMessage.push(createInfo("overlayLayer.html", 2, "地图动态图层叠加", "该范例展示两个地图动态图层叠加显示。"));
+        allClassContent.push(createInfo("overlayLayer.html", allClassContent.length + 1, "地图动态图层叠加", "该范例展示两个地图动态图层叠加显示。"));
+        singleMessage.push(createInfo("cloudLayer.html", 3, "SuperMap 云图层", "该范例展示 SuperMap 云服务发布的图层。"));
+        allClassContent.push(createInfo("cloudLayer.html", allClassContent.length + 1, "SuperMap 云图层", "该范例展示 SuperMap 云服务发布的图层。"));
+        singleMessage.push(createInfo("TDTLayer.html", 4, "天地图图层", "该范例展示天地图服务发布的图层。"));
+        allClassContent.push(createInfo("TDTLayer.html", allClassContent.length + 1, "天地图图层", "该范例展示天地图服务发布的图层。"));
+        mainClass.push("REST地图服务");
+        subClassContent.push(singleMessage.join(""));
+        singleMessage.length = 0;
+
+        //2专题图 6
+        singleMessage.push(createInfo("themeDotDensity.html", 1, "点密度专题图", "该范例展示对京津地区 1999 年人口数制作点密度专题图，图中每个点代表人口数目 1 万。"));
+        allClassContent.push(createInfo("themeDotDensity.html", allClassContent.length + 1, "点密度专题图", "该范例展示对京津地区 1999 年人口数制作点密度专题图，图中每个点代表人口数目 1 万。"));
+        singleMessage.push(createInfo("themeGraduatedSymbol.html", 2, "等级符号专题图", "该范例展示对京津地区 1999 年人口数目制作等级符号专题图，基准值为 100 万。"));
+        allClassContent.push(createInfo("themeGraduatedSymbol.html", allClassContent.length + 1, "等级符号专题图", "该范例展示对京津地区 1999 年人口数目制作等级符号专题图，基准值为 100 万。"));
+        singleMessage.push(createInfo("themeGraph.html", 3, "统计专题图", "该范例展示将京津地区 1992--1999 年的人口增长率制作成统计专题图——柱状图。"));
+        allClassContent.push(createInfo("themeGraph.html", allClassContent.length + 1, "统计专题图", "该范例展示将京津地区 1992--1999 年的人口增长率制作成统计专题图——柱状图。"));
+        singleMessage.push(createInfo("themeLabel.html", 4, "分段标签专题图", "该范例展示根据 1999 年京津地区人口数目制作的分段标签专题图。"));
+        allClassContent.push(createInfo("themeLabel.html", allClassContent.length + 1, "分段标签专题图", "该范例展示根据 1999 年京津地区人口数目制作的分段标签专题图。"));
+        singleMessage.push(createInfo("themeRange.html", 5, "分段专题图", "该范例展示根据 1999 年京津地区人口数目制作的分段专题图（根据人口密度分为三段：其中黄色代表 0.0~42.5 万，绿色代表 42.5~59.7 万，灰蓝色代表 59.7~912.1 万。"));
+        allClassContent.push(createInfo("themeRange.html", allClassContent.length + 1, "分段专题图", "该范例展示根据 1999 年京津地区人口数目制作的分段专题图（根据人口密度分为三段：其中黄色代表 0.0~42.5 万，绿色代表 42.5~59.7 万，灰蓝色代表 59.7~912.1 万。"));
+        singleMessage.push(createInfo("themeUnique.html", 6, "单值专题图", "该范例展示根据京津地区土地利用类型制作的单值专题图。"));
+        allClassContent.push(createInfo("themeUnique.html", allClassContent.length + 1, "单值专题图", "该范例展示根据京津地区土地利用类型制作的单值专题图。"));
+        mainClass.push("REST专题图");
+        subClassContent.push(singleMessage.join(""));
+        singleMessage.length = 0;
+
+        //3查询 4
+        singleMessage.push(createInfo("queryByBounds.html", 1, "范围查询", "该范例查询并显示矩形区域内的首都。"));
+        allClassContent.push(createInfo("queryByBounds.html", allClassContent.length + 1, "范围查询", "该范例查询并显示矩形区域内的首都。"));
+        singleMessage.push(createInfo("queryByDistance.html", 2, "距离查询", "该范例查询并显示距离上海 30 地图单位内的首都。"));
+        allClassContent.push(createInfo("queryByDistance.html", allClassContent.length + 1, "距离查询", "该范例查询并显示距离上海 30 地图单位内的首都。"));
+        singleMessage.push(createInfo("queryByGeometry.html", 3, "几何查询", "该范例查询并显示多边形区域内的首都。"));
+        allClassContent.push(createInfo("queryByGeometry.html", allClassContent.length + 1, "几何查询", "该范例查询并显示多边形区域内的首都。"));
+        singleMessage.push(createInfo("queryBySQL.html", 4, "SQL 查询", "该范例执行 SQL 查询（查询条件为：人口在 100 千万以上，并且面积在 900 万平方公里以上的国家）。"));
+        allClassContent.push(createInfo("queryBySQL.html", allClassContent.length + 1, "SQL 查询", "该范例执行 SQL 查询（查询条件为：人口在 100 千万以上，并且面积在 900 万平方公里以上的国家）。"));
+        mainClass.push("REST专题图查询");
+        subClassContent.push(singleMessage.join(""));
+        singleMessage.length = 0;
+
+        //4量算 1
+        singleMessage.push(createInfo("measureService.html", 1, "量算", "该范例显示距离量算和面积量算。"));
+        allClassContent.push(createInfo("measureService.html", allClassContent.length + 1, "量算", "该范例显示距离量算和面积量算。"));
+        mainClass.push("量算");
+        subClassContent.push(singleMessage.join(""));
+        singleMessage.length = 0;
+
+        //5空间分析 4
+        singleMessage.push(createInfo("bufferAnalyst.html", 1, "缓冲区分析一", "该范例展示在基本空间要素周围建立具有一定宽度的邻近区域。"));
+        allClassContent.push(createInfo("bufferAnalyst.html", allClassContent.length + 1, "缓冲区分析一", "该范例展示在基本空间要素周围建立具有一定宽度的邻近区域。"));
+        singleMessage.push(createInfo("bufferQuery.html", 2, "缓冲区分析二", "本综合应用案例是对 gps 信号点进行历史轨迹的生成，并对信号影响的区域进行分析，查询并显示出受此 gps 信号影响的工厂。"));
+        allClassContent.push(createInfo("bufferQuery.html", allClassContent.length + 1, "缓冲区分析二", "本综合应用案例是对 gps 信号点进行历史轨迹的生成，并对信号影响的区域进行分析，查询并显示出受此 gps 信号影响的工厂。"));
+        singleMessage.push(createInfo("overlayAnalystService.html", 3, "叠加分析", "本范例以合并(UNION)为例，将京津地区的行政区域与临边地区的行政区域做合并，即可对两个数据集进行合并(UNION)操作。"));
+        allClassContent.push(createInfo("overlayAnalystService.html", allClassContent.length + 1, "叠加分析", "本范例以合并(UNION)为例，将京津地区的行政区域与临边地区的行政区域做合并，即可对两个数据集进行合并(UNION)操作。"));
+        singleMessage.push(createInfo("surfaceAnalyst.html", 4, "表面分析", "该范例提取等值线。"));
+        allClassContent.push(createInfo("surfaceAnalyst.html", allClassContent.length + 1, "表面分析", "该范例提取等值线。"));
+        mainClass.push("空间分析");
+        subClassContent.push(singleMessage.join(""));
+        singleMessage.length = 0;
+
+        //6网络分析 7
+        singleMessage.push(createInfo("closestFacilities.html", 1, "最近设施分析", "该范例展示的是一起交通事故，要求查找在 10 分钟内能到达的最近医院，超过 10 分钟能到达的都不予考虑。此例中，事故发生地即是一个事件点，周边的医院则是设施点。"));
+        allClassContent.push(createInfo("closestFacilities.html", allClassContent.length + 1, "最近设施分析", "该范例展示事件发生点是一起交通事故，要求查找在 10 分钟内能到达的最近医院，超过 10 分钟能到达的都不予考虑。此例中，事故发生地即是一个事件点，周边的医院则是设施点。"));
+        singleMessage.push(createInfo("findLocation.html", 2, "选址分区分析", "本综合应用案例是某商业银行需要在某城市内新增几家分支机构。"));
+        allClassContent.push(createInfo("findLocation.html", allClassContent.length + 1, "选址分区分析", "本综合应用案例是某商业银行需要在某城市内新增几家分支机构。"));
+        singleMessage.push(createInfo("findMTSPPaths.html", 3, "多旅行商分析", "在此举一个现实中的例子来说明物流配送。"));
+        allClassContent.push(createInfo("findMTSPPaths.html", allClassContent.length + 1, "多旅行商分析", "在此举一个现实中的例子来说明物流配送。"));
+        singleMessage.push(createInfo("findMTSPPathsAndTSPPaths.html", 4, "多旅行商分析一", "在此举一个现实中物流配送的例子来说明多旅行商分析及旅行商分析的综合应用。"));
+        allClassContent.push(createInfo("findMTSPPathsAndTSPPaths.html", allClassContent.length + 1, "多旅行商分析二", "在此举一个现实中物流配送的例子来说明多旅行商分析及旅行商分析的综合应用。"));
+        singleMessage.push(createInfo("findPath.html", 5, "最佳路径分析", "最佳路径分析。"));
+        allClassContent.push(createInfo("findPath.html", allClassContent.length + 1, "最佳路径分析", "最佳路径分析。"));
+        singleMessage.push(createInfo("findTSPPaths.html", 6, "旅行商分析", "旅行商分析和最佳路径分析都是在网络中寻找遍历所有站点的最经济的路径，区别是在遍历网络所有站点的过程中对结点访问顺序不同。最佳路径分析必须按照指定顺序对站点进行访问，而旅行商分析是无序的路径分析。"));
+        allClassContent.push(createInfo("findTSPPaths.html", allClassContent.length + 1, "旅行商分析", "旅行商分析和最佳路径分析都是在网络中寻找遍历所有站点的最经济的路径，区别是在遍历网络所有站点的过程中对结点访问顺序不同。最佳路径分析必须按照指定顺序对站点进行访问，而旅行商分析是无序的路径分析。"));
+        singleMessage.push(createInfo("serviceAreas.html", 7, "服务区分析", "服务区分析是以指定服务站点为中心，在一定服务范围内查找网络上服务站点能够提供服务的区域范围。例如：计算某快餐店能够在 30 分钟内送达快餐的区域"));
+        allClassContent.push(createInfo("serviceAreas.html", allClassContent.length + 1, "服务区分析", "服务区分析是以指定服务站点为中心，在一定服务范围内查找网络上服务站点能够提供服务的区域范围。例如：计算某快餐店能够在 30 分钟内送达快餐的区域"));
+        mainClass.push("网络分析");
+        subClassContent.push(singleMessage.join(""));
+        singleMessage.length = 0;
+    };
+
+    // 测试当前设备环境，Windows Android测试通过，未在Mac&iOS下测试过。
+    function detectOS() {
+        if (navigator.userAgent.toLowerCase().indexOf("android") > -1) {
+            return "Mobile";
+        }
+        var isWin = (navigator.platform == "Win32") || (navigator.platform == "Windows");
+        if (isWin) return "Win";
+        var isMac = (navigator.platform == "Mac68K") || (navigator.platform == "MacPPC") || (navigator.platform == "Macintosh");
+        if (isMac) return "Mac";
+        var isUnix = (navigator.platform == "X11") && !isWin && !isMac;
+        if (isUnix) return "Unix";
+        var isLinux = (String(navigator.platform).indexOf("Linux") > -1);
+        if (isLinux) return "Linux";
+
+        return "Mobile"; 
+    }
+</script>
+</head> 
+<body>
+<div id="page" >
+    <div id="header">
+        <h1 >SuperMap iClient for JavaScript</h1>
+        <a id="help" href="./apidoc/index.html" title="帮助文档" target="_blank"></a>
+        <a id="return" href="javascript:void(0)" target="_self" onclick = aclick() ></a>
+		<a id="fullScreen" href="javascript:void(0)" title="全屏显示" target="_self"  onclick="fullScreen()"></a> 
+		<a id="cancelFullScreen" href="javascript:void(0)" title="退出全屏" target="_self"  onclick="cancelFullScreen()"></a>  		
+    </div>
+    
+    <div id="content">
+        <div id="corner" >
+            <div id="radiolist">
+                <input type="radio" id="introduce" checked="checked" name="title" value="introduce" class="radio" /><label name="introduce" for="introduce" class="label" onclick = menuclick("main_interdoce") >产品介绍</label><li class="slidebar"></li>
+                <input type="radio" id="quickStart" name="title" value="layer" class="radio" /><label name="layer" for="quickStart" class="label" onclick = menuclick("main_quickStart") >快速入门</label><li class="slidebar"></li>
+                <input type="radio" id="api" name="title" value="theme" class="radio" /><label name="api" for="api" class="label" onclick = menuclick("main_api")  >类参考</label><li class="slidebar"></li>
+                <input type="radio" id="all" name="title" value="query" class="radio" /><label id="all_l" name="all" for="all" class="label" onclick = menuclick("all")  >示范程序</label><li class="slidebar"></li>        
+            </div>
+            <div>
+                <div id="subcorner" >
+                    <div id = "subcontent" >
+                        <div id="main_interdoce">
+                            <p class="PageTitle">SuperMap iClient 6R(2012) for JavaScript</p>
+                            <hr /> 
+                            <p>
+                                SuperMap iClient 6R(2012) for JavaScript 是一款在服务式GIS架构体系中，
+                                面向 HTML 5的应用开发，支持多终端、跨浏览器的客户端开发平台。  
+                                SuperMap iClient 6R(2012) for JavaScript采用 HTML + CSS + JavaScript 的开发组合，无需安装任何插件，
+                                便可在终端浏览器上实现美观的地图呈现，
+                                动态实时的要素标绘，以及与多源 GIS 服务的高效交互，快速构建内容丰富、响应迅速、体验流畅的地图应用。
+                            </p>
+
+                            <div class="pageImage">
+                              <img src="./examples/images/JSArchitecture.png" alt="SuperMap iClient 6R(2012) for JavaScript 与其他产品架构关系" align="middle" />
+                              <p> 图1 SuperMap iClient 6R(2012) for JavaScript 与其他产品架构关系</p>
+                            </div>
+                            <h2><img src="./examples/images/blue_glass.png"/><a> SuperMap iClient 6R(2012) for JavaScript 的技术特点</a></h2>
+                            <ul type="circle">
+                                <li>
+                                    <strong>灵活的交互设计与丰富的数据呈现方式 </strong><br />
+                                    SuperMap iClient 6R(2012) for JavaScript 产品面向HTML 5 应用开发，
+                                    可在 HTML 页面利用丰富的图形、图表、图像以及动画等实现 GIS 数据的动态呈现与灵活交互。
+                                    基于 HTML 5 用于绘画的新元素 Canvas 实现了地图图片的高效、稳定呈现。
+                                    SuperMap iClient 6R(2012) for JavaScript 脱离客户端插件的限制，可灵活构建多终端、跨浏览器的服务式 GIS 应用。
+                                </li>
+                                <li>
+                                    <strong>支持多终端访问 </strong><br />
+                                    SuperMap iClient 6R(2012) for JavaScript 支持多终端模式的 Web 应用开发，包括个人电脑、平板电脑、手机等多种
+                                    终端上的浏览器应用，为用户的系统构架提供丰富选择。
+                                </li>
+                                <li><strong>支持多源地图数据 </strong><br />
+                                    SuperMap iClient 6R(2012) for JavaScript 基于 OpenLayers 框架开发，
+                                    支持 SuperMap iServer Java 6R(2012)服务及多种标准第三方服务，并支持各种服务在客户端的无缝聚合。
+                                    包括 OpenGIS 协会制定的 WMS、WFS、KML等标准格式
+                                    服务及 Google Maps、ArcGIS Map、Yahoo! Map、KaMap，MSVirtualEarth 等第三方服务。
+                                    同时支持超图云服务，包括在线地图服务或通过第三方 API 开发得到的地图应用云。
+                                    SuperMap iClient 6R(2012) for JavaScript 产品将在服务式 GIS 体系下为用户提供更好的 Web 应用支撑。
+                                </li>
+                            </ul>
+                            <h2><img src="./examples/images/blue_glass.png"/> SuperMap iClient 6R(2012) for JavaScript 支持的服务</h2>
+							<ul>
+								<li type="circle"> <strong>SuperMap.Layer 命名空间下的服务： </strong></li>  
+							<ul>
+								<li>SuperMap 云服务图层类</li> 
+								<li>分块缓存图层类</li>
+								<li>分块动态 REST图层类</li>
+							</ul>
+							</ul>
+							<ul>
+								<li type="circle"> <strong> SuperMap.REST 命名空间下的服务： </strong> </li>
+								<ul>
+									<li>量算服务类
+									  <ul>
+										<li>距离量算</li>
+										<li>面积量算</li>
+									  </ul>
+									</li> 
+									<li>查询服务类
+									  <ul>
+										<li>距离查询</li>
+										<li>几何对象查询</li>
+										<li>SQL 查询</li>
+										<li>范围查询</li>
+									  </ul>
+									</li>
+									<li>专题服务类
+									  <ul>
+										<li>单值专题图</li>
+										<li>范围分段专题图</li>
+										<li>标签专题图</li>
+										<li>点密度专题图</li>
+										<li>等级符号专题图</li>
+										<li>统计专题图</li>
+									  </ul>
+									</li>  
+									<li>空间分析服务类
+									  <ul>
+										<li>缓冲区分析</li>
+										<li>叠加分析</li>
+										<li>表面分析</li>
+									  </ul>
+									</li>
+									<li>网络分析服务类
+									  <ul>
+										<li>最近设施分析服务类</li>
+										<li>最佳路径分析服务类</li>
+										<li>服务区分析服务类</li>
+										<li>选址分区分析服务类 </li>
+										<li>旅行商分析服务类</li>
+										<li>多旅行商分析服务类</li>
+										<li>耗费矩阵分析服务类</li>
+									  </ul>
+									</li>
+								</ul>									
+							</ul>                     
+                            <h2><img src="./examples/images/blue_glass.png"/> SuperMap iClient 6R(2012) for JavaScript 的配置要求</h2>
+                            <ul>
+                                <li type="circle"><strong>软件要求</strong></li>
+								<ul>
+									<li>SuperMap iServer Java 6R(2012)。</li>
+								</ul>
+							</ul>
+							<ul>
+								<li type="circle"><strong>浏览器要求</strong></li>
+								<ul>
+								   <li>支持 Firefox </li>
+								   <li>支持 Microsoft Internet Explorer 浏览器</li>
+								   <li>支持 Apple Safari、Google Chrome、Opera 浏览器</li>
+								   <li>建议使用的浏览器版本
+										<ul>
+										   <li>建议 Firefox 5.0+ </li>
+										   <li>建议 IE 9+</li>
+										   <li>建议 Safari 4+</li>
+										   <li>建议 Chrome 1.0+</li>
+										   <li>建议 Opera 10+</li>
+										</ul>
+									</li>
+								</ul>
+							</ul>
+							<ul>
+								<li type="circle"><strong>移动设备系统要求</strong></li>
+                                <ul>
+                                    <li>支持 Android 2.2+ 。</li>
+                                    <li>支持 IOS 4.0+ 。</li>
+                                </ul>
+                            </ul>
+                            <h2><img src="./examples/images/blue_glass.png"/> SuperMap iClient 6R(2012) for JavaScript 的目录结构说明</h2>
+                            <div class="pageImage">
+                                <img src="./examples/images/PackageCatalog_All.png" alt="SuperMap iClient 6R(2012) for JavaScript 安装包结构" /> 
+                            </div>
+							<ul>
+								<li>
+								   <strong>apidoc</strong> <br>
+								   apidoc 为存放产品帮助文档的文件夹，启动 index.html 文件可查看帮助文档。
+								</li>
+								<li>
+									<strong>examples</strong> <br>
+									examples 为 SuperMap iClient 6R(2012) for JavaScript 产品支持 SuperMap iServer Java 6R(2012) 服务产品的示范代码。
+								</li>
+								<li>
+									<strong>libs</strong> <br>
+									libs文件夹存放产品的库文件，包括SuperMap-6.1.js 等产品的开发文件
+								</li>
+								<li>
+									<strong>resource</strong> <br />
+									resource  为产品中用到的资源。
+								</li>
+								<li>
+									<strong>index.html</strong> <br />
+									帮助索引页，双击打开之后可以查看 example 案例和 API 文档参考。
+								</li>
+							</ul>
+                        </div>
+                        
+                        <div id="main_quickStart">
+        <p class="PageTitle">产品入门</p>
+        <hr />
+        <p>SuperMap iClient 6R(2012) for JavaScript 开发流程如下：</p>
+        <div class="pageImage"><img src="./examples/images/ajaxflow.png" alt="JavaScript 开发流程" />
+        </div>
+        <p>下面我们将介绍如何使用SuperMap iClient 6R(2012) for JavaScript 来构建一个简单的地图应用。</p>
+        <h3><strong> 第一步：下载 SuperMap iClient 6R(2012)for JavaScript 压缩包文件，解压安装包文件于本地磁盘，解压后的安装包结构如下： </strong></h3>
+        <div class="pageImage"><img src="./examples/images/PackageCatalog_All.png" alt="SuperMap iClient 6R(2012) for Javascript 安装包结构" />
+        </div>
+        <h3 ><strong>第二步：创建 HTML 显示页面 </strong></h3>
+        <p>在磁盘上任意位置新建文件夹并自定义该文件夹，本例命名为“MyFirst”；在 "MyFirst”文件夹下用文本编辑工具（如NotePad++）新建一个“GettingStarted.html”的 Html 页面，注意将该Html页面保存为 UTF-8 编码格式，并添加入以下代码：</p>
+        
+        <DIV id="section">
+            <table class="syntaxtable" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <th class="code">JavaScript</th>
+                    <th class="code">
+                    <!--onClick="copyToClipBoard(0)"，第一次为0，依次添加。-->
+                        <span class="copyCode" onClick="copyToClipBoard(0)" tabindex="0">
+                            <a  style="text-decoration:none;"><img class="copyCodeImage" name="ccImage" align="absmiddle" src="./examples/images/seeAlso.gif" onMouseOver="this.src='./examples/images/copycodeHighlight.gif'" onMouseOut="this.src='./examples/images/seeAlso.gif'">         
+                        拷贝代码</a>
+                        </span>
+                    </th>
+                </tr>
+                <tr>
+                    <td colspan="2">
+<pre class="code">
+<code>&lt;!DOCTYPE HTML&gt;
+&lt;html xmlns="http://www.w3.org/1999/xhtml"&gt;
+  &lt;body onload="init()"&gt; 
+     //地图显示的div
+     &lt;div id="map" style="position:absolute;left:0px;right:0px;width:800px;height:500px;" &gt;             
+     &lt;/div&gt;    
+  &lt;/body&gt;
+&lt;/html&gt;
+</code></pre></td></tr>
+            </table>
+    </div>
+        
+
+<h3><strong>第三步：引用资源文件。</strong></h3>
+<ol type="1">
+    <li>将第一步得到的 resource 文件夹拷贝到“MyFirst”文件夹下；</li>
+    <li>拷贝libs文件夹到“MyFirst”文件夹下；</li>
+    </ol>
+
+<h3><strong>第四步：在&lt;html&gt;和&lt;body&gt;之间添加如下代码，实现创建地图功能。</strong></h3>
+
+<DIV id="section">
+          <table class="syntaxtable" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <th class="code">JavaScript</th>
+                    <th class="code">
+                    <!--onClick="copyToClipBoard(0)"，第一次为0，依次添加。-->
+                        <span class="copyCode" onClick="copyToClipBoard(1)" tabindex="1">
+                            <a style="text-decoration:none;"><img class="copyCodeImage" name="ccImage" align="absmiddle" src="./examples/images/seeAlso.gif" onMouseOver="this.src='./examples/images/copycodeHighlight.gif'" onMouseOut="this.src='./examples/images/seeAlso.gif'">         
+                        拷贝代码</a>
+                        </span>
+                    </th>
+                </tr>
+                <tr>
+                    <td colspan="2">    
+<pre class="code"><code>
+&lt;head&gt;   
+     &lt;title&gt;SuperMap iClient JavaScript:TiledDynamicRESTLayer&lt;/title&gt;
+     //引用需要的脚本
+     &lt;script src="./libs/SuperMap.Include.js"&gt;&lt;/script&gt;
+     &lt;script type="text/javascript"&gt;
+        //声明变量map、layer、url；
+        var map, layer,
+        url = "http://localhost:8090/iserver/services/map-world/rest/maps/World Map";
+        //创建地图控件
+        function init() {
+            map = new SuperMap.Map ("map",{controls: [
+                      new SuperMap.Control.ScaleLine(),
+                      new SuperMap.Control.PanZoom(),
+                      new SuperMap.Control.Navigation()
+                  ]
+            });
+            //创建分块儿动态REST图层，该图层显示iserver java 6R 服务发布的地图，
+            //其中“world”为图层名称，url图层的服务地址，{transparent: true}设置到url的可选参数，
+            layer = new SuperMap.Layer.TiledDynamicRESTLayer("World", url, 
+			{transparent: true}, {maxResolution:"auto"});
+            layer.events.on({"layerInitialized": addLayer});          
+         }             
+             function addLayer() {
+             //将Layer图层加载到Map对象上
+         map.addLayer(layer);
+             //出图，map.setCenter函数显示地图
+         map.setCenter(new SuperMap.LonLat(0, 0), 0);        
+          }
+    &lt;/script&gt;
+&lt;/head&gt;
+</code></pre></td></tr>
+  </table>
+    </div>
+<h3><strong>第五步：启动 SuperMap iServerJava 6R 并运行 GettingStarted.html 文件，浏览地图数据。</strong></h3>
+						<div id="map" style="width:800px; height:500px;">
+							
+						</div>                                                                   
+                        </div>
+						<div id="main_api">
+							<p class="PageTitle">类参考</p>
+							<hr />
+							<a id="help" href="./apidoc/index.html" title="帮助文档" target="_blank"><strong><span id = "helpText">点击打开帮助文档</span></strong></a>
+						</div>
+                        <ul id="rightcontent" >
+                        </ul>
+                    </div>                    
+                </div>
+            </div>       
+            <IFRAME  id="frame"  frameBorder=0 ></IFRAME>
+        </div>
+    </div>
+
+    <div id="footer">
+        <h4 >版权所有&copy; 1997-2012,北京超图软件股份有限公司</h4>
+    </div>
+</div>
+<script>
+
+    function fullScreen(evt) {
+        if (window.fullScreenApi.supportsFullScreen) {
+            // 里面的元素是需要全屏的元素 
+            window.fullScreenApi.requestFullScreen(document.documentElement); 
+            $("#cancelFullScreen").show();
+            $("#fullScreen").hide();
+        }
+        else{
+            alert("当前浏览器不支持全屏,支持全屏的浏览器有 FireFox 10+, Chrome 15+, Safari 5.1+ 。");
+        }
+    };
+    function cancelFullScreen() {
+            window.fullScreenApi.cancelFullScreen();
+            $("#cancelFullScreen").hide();
+            $("#fullScreen").show();
+        }
+    $(document).keyup(function(event){   
+    //获取当前按键的键值   
+    //jQuery的event对象上有一个which的属性可以获得键盘按键的键值   
+    var keycode = event.which;  
+    //处理esc的情况   
+    if(keycode == 27){ 
+            cancelFullScreen(); 
+        }   
+    });
+
+</script>
+</body>
+</html>
